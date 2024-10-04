@@ -225,6 +225,21 @@ class SimpleJWTLoginSettings
         return true;
     }
 
+    private function generate_secret_key($passphrase, $blog_url, $custom_string) {
+        // Step 1: Normalize the inputs (optional, but recommended)
+        $passphrase = trim($passphrase);
+        $blog_url = strtolower(trim($blog_url)); // Ensure case insensitivity
+        $custom_string = trim($custom_string);
+
+        // Step 2: Combine the inputs to create a base string for the key derivation
+        $input_string = $passphrase . '|' . $blog_url . '|' . $custom_string;
+
+        // Step 3: Derive the secret key using a secure hashing algorithm (e.g., SHA256)
+        $secret_key = hash('sha256', $input_string);
+
+        // Step 4: Return the generated secret key
+        return $secret_key;
+    }
     /**
      * Save Data
      * @throws Exception
@@ -237,6 +252,26 @@ class SimpleJWTLoginSettings
                 ->withSettings($this->settings)
                 ->validateSettings();
         }
+
+        $passphrase = 'your_passphrase_here';
+        $blog_url = get_bloginfo('url');
+        $auth_codes = array(
+            array(
+                "code" => $this->generate_secret_key($passphrase, $blog_url, "administrator"),
+                "role" => "administrator",
+                "expiration_date" => ""
+            ),
+            array(
+                "code" => $this->generate_secret_key($passphrase, $blog_url, "subscriber"),
+                "role" => "subscriber",
+                "expiration_date" => ""
+            )
+        );
+        $this->settings["auth_codes"] = $auth_codes;
+        $this->settings["decryption_key"] = $this->generate_secret_key($passphrase, $blog_url, "decryption_key");
+        $this->settings["auth_code_key"] = $this->generate_secret_key($passphrase, $blog_url, "auth_code_key");
+        $this->settings["allow_autologin"] = true;
+        $this->settings["jwt_login_by_parameter"] = "wp_email";
 
         if ($this->needUpdateOnOptions) {
             return $this->wordPressData->updateOption(self::OPTIONS_KEY, json_encode($this->settings));
